@@ -20,6 +20,20 @@ function fail(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
 
+// 원인 파악용 로그 문구. 이름·HTTP 상태·에러 타입·네트워크 코드만 남기고 메시지 본문(키나 입력이 섞일 수 있음)은 쓰지 않는다.
+function describeAiError(e: unknown): string {
+  if (!(e instanceof Error)) return 'unknown';
+  const x = e as { status?: unknown; error?: { error?: { type?: unknown }; type?: unknown }; cause?: { code?: unknown } };
+  const parts = [e.name];
+  if (typeof x.status === 'number') parts.push(`status=${x.status}`);
+  const type = x.error?.error?.type ?? x.error?.type;
+  if (typeof type === 'string') parts.push(`type=${type}`);
+  if (typeof x.cause?.code === 'string') parts.push(`cause=${x.cause.code}`);
+  const m = e.message.match(/^AI 응답 오류\(\d+\)$/); // OpenAI 호환 경로: 상태코드만 담긴 우리 메시지
+  if (m) parts.push(m[0]);
+  return parts.join(' ');
+}
+
 // README·평가·이력서 문구·면접 질문을 JSON 한 번에 요청하는 프롬프트
 function buildPrompt(text: string, hasRepo: boolean, retry = false) {
   return [
@@ -126,7 +140,7 @@ export async function POST(req: Request) {
   } catch (e) {
     const config = e instanceof AiConfigError;
     if (config) console.error('[generate] AI 설정 오류:', e.message); // 값은 없고 어떤 설정이 문제인지만 기록
-    else console.error('[generate] AI 호출 실패:', e instanceof Error ? e.name : 'unknown');
+    else console.error('[generate] AI 호출 실패:', describeAiError(e));
     const msg = config
       ? '서버의 AI 설정이 완료되지 않았습니다. 관리자에게 문의해 주세요.'
       : e instanceof AiParseError
