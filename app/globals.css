@@ -1,0 +1,6 @@
+@font-face{font-family:Pretendard;src:url('/fonts/PretendardVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
+*{box-sizing:border-box}
+body{margin:0;font-family:Pretendard,Arial,sans-serif;-webkit-font-smoothing:antialiased;background:#fff;color:#111}
+main{max-width:720px;margin:0 auto;padding:80px 24px}
+h1{font-size:40px;margin:0 0 12px}
+p{line-height:1.7;color:#555}
