@@ -5,6 +5,22 @@ main{max-width:720px;margin:0 auto;padding:80px 24px}
 h1{font-size:40px;margin:0 0 12px}
 p{line-height:1.7;color:#555}
 .gen{margin-top:32px;display:grid;gap:12px}
+.gen input{width:100%;font:inherit;padding:12px;border:1px solid #ccc;border-radius:8px}
+.gen-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.gen .gen-copy{margin-left:auto;padding:8px 16px;background:#fff;color:#111;border:1px solid #111}
+.gen-note{margin:0 0 12px;padding:10px 12px;background:#fff8e1;border-radius:8px;font-size:14px}
+.gen-diag{line-height:1.6}
+.gen-diag h3{margin:20px 0 6px;font-size:16px}
+.gen-items,.gen-todos{list-style:none;padding:0;margin:0}
+.gen-items li{padding:2px 0}
+.gen-items .ok .mark{color:#0a7d33}
+.gen-items .no .mark{color:#c0182b}
+.gen-items .pt{float:right;color:#777;font-size:13px}
+.gen-delta{margin:12px 0 0}
+.gen-result{margin-top:4px}
+.gen-result>.gen-tabs{margin-bottom:12px}
+.gen .gen-tab{padding:8px 16px;background:#fff;color:#111;border:1px solid #ccc}
+.gen .gen-tab.active{background:#111;color:#fff;border-color:#111}
 .gen textarea{width:100%;font:inherit;padding:12px;border:1px solid #ccc;border-radius:8px;resize:vertical}
 .gen button{justify-self:start;font:inherit;padding:10px 20px;border:0;border-radius:8px;background:#111;color:#fff;cursor:pointer}
 .gen button:disabled{opacity:.5;cursor:not-allowed}

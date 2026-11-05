@@ -15,7 +15,7 @@ export type GenerateResult = {
 // 설정 누락 같은 "서버 쪽 문제"를 구분하기 위한 에러
 export class AiConfigError extends Error {}
 
-const MAX_TOKENS = 1500; // 출력 토큰 상한
+const MAX_TOKENS = 3500; // 출력 토큰 상한 (README + 평가 + 이력서 + 질문 JSON)
 const TIMEOUT_MS = 280_000; // 함수 제한(300초)보다 약간 짧게
 
 function readConfig(task: AiTask) {
