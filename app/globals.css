@@ -174,3 +174,26 @@ p{margin:0;line-height:1.7;color:var(--muted)}
   .checks{grid-template-columns:1fr}
   .score-row{grid-template-columns:36px 1fr auto;gap:10px}
 }
+
+/* 우측 하단 후원 버튼 + 모달 */
+.coffee-fab{position:fixed;right:24px;bottom:24px;z-index:50;width:60px;height:60px;padding:0;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);transition:transform .15s,border-color .15s,box-shadow .15s}
+.coffee-fab img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.coffee-fab:hover,.coffee-fab:focus-visible{transform:translateY(-2px);border-color:#f0883e;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.coffee-tip{position:absolute;right:calc(100% + 10px);top:50%;transform:translate(6px,-50%);padding:6px 12px;border-radius:6px;background:var(--panel);border:1px solid var(--border);color:var(--text);font:600 13px var(--mono);white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .18s,transform .18s,visibility .18s}
+.coffee-fab:focus-visible .coffee-tip{opacity:1;visibility:visible;transform:translate(0,-50%)}
+@media (hover:hover){.coffee-fab:hover .coffee-tip{opacity:1;visibility:visible;transform:translate(0,-50%)}}
+.coffee-backdrop{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(1,4,9,.72)}
+.coffee-modal{position:relative;width:100%;max-width:400px;max-height:calc(100dvh - 32px);overflow-y:auto;padding:32px 24px 24px;border-radius:12px;background:var(--panel);border:1px solid var(--border);box-shadow:0 16px 48px rgba(0,0,0,.6);text-align:center}
+.coffee-logo{display:block;width:88px;height:88px;margin:0 auto 16px;border-radius:50%;object-fit:cover;background:#fff}
+.coffee-modal h2{margin:0 0 8px;font:700 18px/1.4 var(--sans);color:var(--text)}
+.coffee-notice{margin-top:12px;color:var(--warn);font-size:14px}
+.coffee-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:24px;line-height:1;cursor:pointer}
+.coffee-x:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.coffee-actions{display:flex;gap:8px;margin-top:20px}
+.coffee-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);font:600 14px var(--sans);text-decoration:none;cursor:pointer}
+.coffee-btn:hover{background:rgba(255,255,255,.06)}
+.coffee-btn-primary{background:var(--accent-bg);border-color:var(--accent-bg);color:#fff}
+.coffee-btn-primary:hover{background:var(--accent-bg-hover)}
+.coffee-btn[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+@media (max-width:600px){.coffee-fab{width:52px;height:52px;right:16px;bottom:16px}.coffee-actions{flex-direction:column-reverse}}
+@media (prefers-reduced-motion:reduce){.coffee-fab,.coffee-tip{transition:none}}

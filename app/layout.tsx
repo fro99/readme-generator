@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import CoffeeFloating from '@/components/CoffeeFloating';
 
 export const metadata: Metadata = {
   title: 'README Generator',
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        <CoffeeFloating />
+      </body>
     </html>
   );
 }
