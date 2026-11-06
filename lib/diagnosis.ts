@@ -32,7 +32,7 @@ const score = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Mat
 
 // 문자열 리터럴 "안에" 있는 실제 줄바꿈·탭 등 제어문자를 \n, \t 등으로 바꾼다. (문자열 밖의 공백·줄바꿈은 그대로 둠)
 // 모델이 JSON 문자열 안에 줄바꿈을 이스케이프하지 않고 그대로 쓰면 JSON.parse가 실패하는 문제를 복구한다.
-function escapeControlCharsInStrings(s: string): string {
+export function escapeControlCharsInStrings(s: string): string {
   let out = '';
   let inStr = false;
   let esc = false;
@@ -61,7 +61,7 @@ function escapeControlCharsInStrings(s: string): string {
 }
 
 // 로그용 요약. JSON.parse 에러 메시지에는 입력 일부가 섞일 수 있어 종류와 위치(숫자)만 뽑는다.
-function describeSyntaxError(err: unknown, len: number): string {
+export function describeSyntaxError(err: unknown, len: number): string {
   const msg = err instanceof Error ? err.message : '';
   const kind = /Unterminated string/i.test(msg)
     ? 'unterminated_string'

@@ -1,4 +1,4 @@
-# README Generator
+# RepoPilot
 
 해커톤 프로젝트. Next.js(App Router) + Supabase + Vercel.
 

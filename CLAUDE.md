@@ -1,7 +1,7 @@
-# README Generator (해커톤)
+# RepoPilot (해커톤)
 
 ## 프로젝트
-- HY컴퍼니 프로젝트에서 복제한 해커톤용 "README 한방 생성기".
+- HY컴퍼니 프로젝트에서 복제한 해커톤용 "RepoPilot".
 - GitHub 링크나 설명을 넣으면 AI가 강사님 README 구성에 맞춰 README, 진단 점수, 이력서 문구, 면접 질문을 만들어 줍니다.
 - 스택: Next.js App Router, TypeScript, npm, Supabase(hosted, 기존 프로젝트 재사용), Vercel.
 

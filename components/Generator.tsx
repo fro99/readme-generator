@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react';
 import Result from './Result';
 import { SampleAccordion, TerminalDemo } from './Showcase';
+import LoadingTerminal from './LoadingTerminal';
 import type { DiagnosisResponse } from '@/lib/diagnosis';
 
 type Mode = 'github' | 'text';
 const MODES = [['github', 'GitHub 링크'], ['text', '설명 직접 입력']] as const;
-const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 export default function Generator() {
   const [mode, setMode] = useState<Mode>('github');
@@ -121,12 +121,12 @@ export default function Generator() {
       </form>
 
       {loading && (
-        <div className="gen-term" role="status" aria-live="polite">
-          <div>
-            <span className="ps">$</span> <span className="t">analyzing...</span> [{mmss(elapsed)}]
-          </div>
-          <div>&gt; 보통 15~20초 걸립니다.</div>
-        </div>
+        <LoadingTerminal
+          elapsed={elapsed}
+          first={mode === 'github' ? '저장소 읽는 중' : '입력 확인'}
+          firstSeconds={mode === 'github' ? 3 : 0}
+          hint="보통 15~20초 걸립니다."
+        />
       )}
       {error && !loading && (
         <div className="gen-err" role="alert">

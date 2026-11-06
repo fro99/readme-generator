@@ -1,17 +1,28 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { aiTotal, AI_MAX, type AiReport, type DiagnosisResponse } from '@/lib/diagnosis';
+import type { PortfolioGuide, PortfolioMeta } from '@/lib/portfolio';
+import PortfolioView, { portfolioText } from './PortfolioView';
+import SummaryCard from './SummaryCard';
+import LoadingTerminal from './LoadingTerminal';
+import { Bar, Gauge } from './Gauge';
 
-type Tab = 'readme' | 'review' | 'resume' | 'questions';
+type Tab = 'readme' | 'review' | 'resume' | 'questions' | 'portfolio';
+// 포트폴리오 가이드 상태: 버튼을 눌렀을 때만 loading으로 바뀌고 AI를 1회 호출한다
+type Pf =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; guide: PortfolioGuide; meta?: PortfolioMeta }
+  | { status: 'error'; message: string };
 const TABS: readonly { key: Tab; label: string; file: string }[] = [
   { key: 'readme', label: 'README', file: 'README.md' },
   { key: 'review', label: '강점·개선점', file: 'review.md' },
   { key: 'resume', label: '이력서 3줄', file: 'resume.md' },
   { key: 'questions', label: '면접 질문', file: 'interview.md' },
+  { key: 'portfolio', label: '포트폴리오', file: 'portfolio.md' },
 ];
 const AI_LABELS = { problem: '문제 정의', detail: '구체성', structure: '구성', techChoice: '기술 선택' } as const;
 const AI_KEYS = Object.keys(AI_LABELS) as (keyof typeof AI_LABELS)[];
-const pct = (v: number, max: number) => Math.max(0, Math.min(100, Math.round((v / max) * 100)));
 
 // 복사 버튼: 누르면 2초 동안 "복사됨 ✓"
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -69,6 +80,38 @@ export default function Result({ data }: { data: DiagnosisResponse }) {
   const [done, setDone] = useState<Record<string, boolean>>({});
   const cur = TABS.find((t) => t.key === tab) ?? TABS[0];
 
+  // 포트폴리오 가이드: 기존 결과(README 정리본)만 보내므로 GitHub를 다시 읽지 않는다. 설명 직접 입력 결과(repo 없음)도 동작한다.
+  const [pf, setPf] = useState<Pf>({ status: 'idle' });
+  const [pfElapsed, setPfElapsed] = useState(0);
+  const inflight = useRef(false); // state 갱신 전에 연타해도 중복 호출되지 않게 동기적으로 막는 잠금
+
+  useEffect(() => {
+    if (pf.status !== 'loading') return;
+    const t = setInterval(() => setPfElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [pf.status]);
+
+  async function generatePortfolio() {
+    if (inflight.current || !ai) return;
+    inflight.current = true;
+    setPf({ status: 'loading' });
+    setPfElapsed(0);
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: ai.readme.slice(0, 6000), oneLiner: ai.resume.oneLiner, repo: data.repo }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.guide) setPf({ status: 'error', message: json?.error ?? '포트폴리오 가이드를 받지 못했습니다.' });
+      else setPf({ status: 'ok', guide: json.guide, meta: json.meta });
+    } catch {
+      setPf({ status: 'error', message: '네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.' });
+    } finally {
+      inflight.current = false;
+    }
+  }
+
   const aiError = (
     <div className="rbody">
       <div className="gen-err" role="alert">
@@ -110,52 +153,68 @@ export default function Result({ data }: { data: DiagnosisResponse }) {
     ) : (
       aiError
     );
+  } else if (tab === 'portfolio') {
+    copy = pf.status === 'ok' ? portfolioText(pf.guide, data.repo) : '';
+    if (pf.status === 'ok') {
+      body = <PortfolioView guide={pf.guide} />;
+    } else if (!ai) {
+      body = (
+        <div className="rbody">
+          <div className="gen-err" role="alert">
+            <b>error:</b> AI 결과가 없어 포트폴리오 가이드를 만들 수 없습니다.
+          </div>
+        </div>
+      );
+    } else {
+      body = (
+        <div className="rbody pf-start">
+          <p className="note">
+            # 포트폴리오에 프로젝트를 쓸 때 적어야 할 내용을 정리합니다. 버튼을 누르면 AI를 1회 호출합니다(자동 실행 없음).
+            내 역할·트러블슈팅·성과는 AI가 쓰지 않고, 직접 작성할 칸과 질문만 제공합니다.
+          </p>
+          {pf.status === 'error' && (
+            <div className="gen-err" role="alert">
+              <b>error:</b> {pf.message}
+            </div>
+          )}
+          {pf.status === 'loading' && <LoadingTerminal elapsed={pfElapsed} first="README 정리본 준비" firstSeconds={0} hint="보통 10~20초 걸립니다." />}
+          <button type="button" className="gen-run" onClick={generatePortfolio} disabled={pf.status === 'loading'} aria-label="포트폴리오 가이드 생성">
+            {pf.status === 'loading' ? 'running...' : '$ 포트폴리오 가이드 생성'}
+          </button>
+        </div>
+      );
+    }
   } else {
     copy = reviewText(data);
     body = (
       <div className="rbody">
         <p className="note"># 참고용 진단입니다. 규칙 점검과 AI 평가로 만든 결과이며 실제 평가와 다를 수 있습니다.</p>
 
-        {/* 점수: 상단, monospace */}
-        <div className="score" aria-label="점수">
-          {rule && (
-            <>
-              <div className="score-row">
-                <span className="k">rule</span>
-                <div className="bar"><i style={{ width: `${pct(rule.total, rule.max)}%` }} /></div>
-                <span className="v">{rule.total}/{rule.max}</span>
-              </div>
-              <div className="score-sub">
-                현재 <b>{rule.total}</b> → 예상 <b>{rule.expected}</b> (생성된 README 적용 시, {rule.max}점 만점)
-              </div>
-            </>
-          )}
-          {ai && (
-            <>
-              <div className="score-row">
-                <span className="k">ai</span>
-                <div className="bar"><i style={{ width: `${pct(aiTotal(ai.review), AI_MAX)}%` }} /></div>
-                <span className="v">{aiTotal(ai.review)}/{AI_MAX}</span>
-              </div>
-              <div className="score-sub">
-                {AI_KEYS.map((k, i) => (
-                  <span key={k}>
-                    {i > 0 && ' · '}
-                    {AI_LABELS[k]} <b>{ai.review.scores[k]}</b>/10
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-          {rule && ai && (
-            <div className="score-row total">
-              <span className="k">total</span>
-              <span />
-              <span className="v">{rule.total + aiTotal(ai.review)}/{rule.max + AI_MAX}</span>
-            </div>
-          )}
-          {!rule && <div className="score-sub">설명 직접 입력 모드: 규칙 채점은 건너뛰고 AI 평가만 표시합니다.</div>}
-        </div>
+        {/* 점수: 상단. SVG 원형 게이지(숫자는 monospace) + AI 세부 점수 가로 막대 */}
+        {(rule || ai) && (
+          <div className="gauges" aria-label="점수">
+            {rule && <Gauge value={rule.total} max={rule.max} label="rule" />}
+            {ai && <Gauge value={aiTotal(ai.review)} max={AI_MAX} label="ai" />}
+            {rule && ai && <Gauge value={rule.total + aiTotal(ai.review)} max={rule.max + AI_MAX} label="total" />}
+          </div>
+        )}
+        {rule && (
+          <p className="gauge-sub">
+            rule 현재 <b>{rule.total}</b> → 예상 <b>{rule.expected}</b> (생성된 README 적용 시, {rule.max}점 만점)
+          </p>
+        )}
+        {ai && (
+          <ul className="subbars" aria-label="AI 세부 점수">
+            {AI_KEYS.map((k) => (
+              <li key={k}>
+                <span>{AI_LABELS[k]}</span>
+                <Bar value={ai.review.scores[k]} max={10} />
+                <b>{ai.review.scores[k]}/10</b>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!rule && <p className="gauge-sub">설명 직접 입력 모드: 규칙 채점은 건너뛰고 AI 평가만 표시합니다.</p>}
 
         {rule && (
           <>
@@ -206,6 +265,7 @@ export default function Result({ data }: { data: DiagnosisResponse }) {
 
   return (
     <div className="res">
+      <SummaryCard data={data} />
       <div className="etabs" role="tablist" aria-label="결과">
         {TABS.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className="etab" onClick={() => setTab(t.key)}>
