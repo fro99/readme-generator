@@ -10,12 +10,16 @@ export type GenerateResult = {
   inputChars: number; // 입력 길이(글자 수, 대략값)
   outputChars: number; // 출력 길이(글자 수, 대략값)
   durationMs: number; // 소요 시간(ms)
+  stopReason: string | null; // 종료 사유. 'max_tokens'면 출력 상한에서 잘린 것 (OpenAI의 'length'도 이 값으로 통일)
+  outputTokens: number | null; // 실제 출력 토큰 수
 };
+
+type RawResult = { text: string; stopReason: string | null; outputTokens: number | null };
 
 // 설정 누락 같은 "서버 쪽 문제"를 구분하기 위한 에러
 export class AiConfigError extends Error {}
 
-const MAX_TOKENS = 3500; // 출력 토큰 상한 (README + 평가 + 이력서 + 질문 JSON)
+const MAX_TOKENS = 5000; // 출력 토큰 상한 (README + 평가 + 이력서 + 질문 JSON). 한글·이모지·코드는 글자당 약 1.3토큰
 const TIMEOUT_MS = 280_000; // 함수 제한(300초)보다 약간 짧게
 
 function readConfig(task: AiTask) {
@@ -32,7 +36,7 @@ function readConfig(task: AiTask) {
 }
 
 // Anthropic 공식 SDK로 호출
-async function callAnthropic(cfg: ReturnType<typeof readConfig>, prompt: string): Promise<string> {
+async function callAnthropic(cfg: ReturnType<typeof readConfig>, prompt: string): Promise<RawResult> {
   const client = new Anthropic({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl, timeout: TIMEOUT_MS, maxRetries: 1 });
   const res = await client.messages.create({
     model: cfg.model,
@@ -40,11 +44,15 @@ async function callAnthropic(cfg: ReturnType<typeof readConfig>, prompt: string)
     messages: [{ role: 'user', content: prompt }],
   });
   // 응답은 여러 블록일 수 있으므로 텍스트 블록만 이어 붙임
-  return res.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
+  return {
+    text: res.content.map((b) => (b.type === 'text' ? b.text : '')).join(''),
+    stopReason: res.stop_reason ?? null,
+    outputTokens: typeof res.usage?.output_tokens === 'number' ? res.usage.output_tokens : null,
+  };
 }
 
 // OpenAI 호환 chat completions를 fetch로 호출
-async function callOpenAi(cfg: ReturnType<typeof readConfig>, prompt: string): Promise<string> {
+async function callOpenAi(cfg: ReturnType<typeof readConfig>, prompt: string): Promise<RawResult> {
   const base = (cfg.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
@@ -57,16 +65,27 @@ async function callOpenAi(cfg: ReturnType<typeof readConfig>, prompt: string): P
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`AI 응답 오류(${res.status})`); // 본문에 민감 정보가 있을 수 있어 상태코드만 남김
-  const data = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
-  return data.choices?.[0]?.message?.content ?? '';
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string | null }; finish_reason?: string | null }[];
+    usage?: { completion_tokens?: number };
+  };
+  const finish = data.choices?.[0]?.finish_reason ?? null;
+  return {
+    text: data.choices?.[0]?.message?.content ?? '',
+    stopReason: finish === 'length' ? 'max_tokens' : finish,
+    outputTokens: typeof data.usage?.completion_tokens === 'number' ? data.usage.completion_tokens : null,
+  };
 }
 
 // AI 호출은 이 함수 하나로만 한다.
 export async function generate({ task, prompt }: { task: AiTask; prompt: string }): Promise<GenerateResult> {
   const cfg = readConfig(task);
   const started = Date.now();
-  const text = cfg.provider === 'anthropic' ? await callAnthropic(cfg, prompt) : await callOpenAi(cfg, prompt);
+  const raw = cfg.provider === 'anthropic' ? await callAnthropic(cfg, prompt) : await callOpenAi(cfg, prompt);
+  const text = raw.text;
   return {
+    stopReason: raw.stopReason,
+    outputTokens: raw.outputTokens,
     text,
     model: cfg.model,
     inputChars: prompt.length,
