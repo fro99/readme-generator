@@ -1,9 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Result from './Result';
+import { SampleAccordion, TerminalDemo } from './Showcase';
 import type { DiagnosisResponse } from '@/lib/diagnosis';
 
 type Mode = 'github' | 'text';
+const MODES = [['github', 'GitHub 링크'], ['text', '설명 직접 입력']] as const;
+const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 export default function Generator() {
   const [mode, setMode] = useState<Mode>('github');
@@ -12,6 +15,14 @@ export default function Generator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<DiagnosisResponse | null>(null);
+  const [runId, setRunId] = useState(0); // 새 결과마다 Result를 새로 마운트(탭·체크 상태 초기화)
+  const [elapsed, setElapsed] = useState(0); // 로딩 중 경과 초
+
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [loading]);
 
   async function onGenerate() {
     // 서버와 같은 기준으로 먼저 검사해 불필요한 호출을 막음
@@ -24,6 +35,7 @@ export default function Generator() {
       return;
     }
     setLoading(true);
+    setElapsed(0);
     setError('');
     try {
       const res = await fetch('/api/generate', {
@@ -37,6 +49,7 @@ export default function Generator() {
         return;
       }
       setResult(data);
+      setRunId((n) => n + 1);
     } catch {
       setError('네트워크 오류가 발생했습니다. 연결을 확인하고 다시 시도해 주세요.');
     } finally {
@@ -46,14 +59,14 @@ export default function Generator() {
 
   return (
     <section className="gen">
-      <div className="gen-tabs" role="tablist">
-        {([['github', 'GitHub 링크'], ['text', '설명 직접 입력']] as const).map(([key, label]) => (
+      <div className="etabs" role="tablist" aria-label="입력 방식">
+        {MODES.map(([key, label]) => (
           <button
             key={key}
             type="button"
             role="tab"
             aria-selected={mode === key}
-            className={`gen-tab${mode === key ? ' active' : ''}`}
+            className="etab"
             onClick={() => {
               setMode(key);
               setError('');
@@ -64,32 +77,69 @@ export default function Generator() {
           </button>
         ))}
       </div>
-      {mode === 'github' ? (
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://github.com/owner/repo (공개 저장소)"
-          disabled={loading}
-        />
-      ) : (
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="프로젝트 설명을 입력하세요 (10자 이상)"
-          rows={8}
-          disabled={loading}
-        />
+
+      <form
+        className="gen-form"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!loading) onGenerate();
+        }}
+      >
+        <div className={`gen-row${mode === 'text' ? ' stack' : ''}`}>
+          <div className="gen-field">
+            <span className="gen-ps" aria-hidden="true">$</span>
+            {mode === 'github' ? (
+              <input
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="GitHub 저장소 주소"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="github.com/owner/repo (공개 저장소)"
+                disabled={loading}
+              />
+            ) : (
+              <textarea
+                aria-label="프로젝트 설명"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="프로젝트 설명을 입력하세요 (10자 이상)"
+                rows={6}
+                disabled={loading}
+              />
+            )}
+          </div>
+          <button type="submit" className="gen-run" disabled={loading} aria-label="README 생성">
+            {loading ? 'running...' : '$ generate'}
+          </button>
+        </div>
+      </form>
+
+      {loading && (
+        <div className="gen-term" role="status" aria-live="polite">
+          <div>
+            <span className="ps">$</span> <span className="t">analyzing...</span> [{mmss(elapsed)}]
+          </div>
+          <div>&gt; 보통 15~20초 걸립니다.</div>
+        </div>
       )}
-      <button onClick={onGenerate} disabled={loading}>
-        {loading ? '생성 중…' : 'README 생성'}
-      </button>
-      {error && (
-        <p className="gen-error" role="alert">
-          {error}
-        </p>
+      {error && !loading && (
+        <div className="gen-err" role="alert">
+          <b>error:</b> {error}
+        </div>
       )}
-      {result && <Result data={result} />}
+      {result && !loading && <Result key={runId} data={result} />}
+
+      {/* 데모는 마운트 상태를 유지한 채 숨겨서 타이핑이 1회만 실행되게 함. 결과가 나오면 기능 카드는 결과 아래에 위치 */}
+      <div hidden={loading || !!result}>
+        <TerminalDemo />
+      </div>
+      <SampleAccordion />
     </section>
   );
 }
